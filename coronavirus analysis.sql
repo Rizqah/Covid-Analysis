@@ -21,98 +21,180 @@ select Distinct DATEPART(Year,Date) AS CovidYear from [dbo].[Corona Virus Datase
 select Distinct DATEPART(Month,Date) AS CovidMonth from [dbo].[Corona Virus Dataset] 
 ORDER BY CovidMonth ASC;
 
-Select AVG (Confirmed) AS AverageConfirmed, 
+Select 
+ Distinct DATEPART(Month,Date) AS CovidMonth , 
+ DATEPART(Year,Date) AS CovidYear, 
+ AVG (Confirmed) AS AverageConfirmed, 
 AVG  (Deaths) AS AverageDeaths,
 AVG (Recovered ) AS  AverageRecovered
 
-from [dbo].[Corona Virus Dataset] ;
-
-SELECT Confirmed, COUNT (*) AS ConfirmedFrequency
-from [dbo].[Corona Virus Dataset]
-GROUP BY Confirmed
-ORDER BY ConfirmedFrequency desc;
+from [dbo].[Corona Virus Dataset] 
+Group by DATEPART(Month,Date), DATEPART(Year,Date)
+Order by DATEPART(Year,Date), DATEPART(Month,Date); ----monthly avg
 
 
-SELECT Deaths, COUNT (*) AS DeathsFrequency
-from [dbo].[Corona Virus Dataset]
-GROUP BY Deaths
-ORDER BY DeathsFrequency desc;
+With ConfirmedFrequencies AS (
+    SELECT
+    Confirmed,
+    DATEPART(Year, Date)CovidYear,
+    DATEPART(Month, Date)CovidMonth,
+    COUNT(*) AS Frequency,
+    Row_Number () OVER(PARTITION BY DATEPART(YEAR, DATE), DATEPART(MONTH, DATE) ORDER BY COUNT(*) DESC ) AS rn
+    from [dbo].[Corona Virus Dataset] 
+    group by DATEPART(Year, Date),
+    DATEPART(Month, Date),Confirmed
 
-SELECT Recovered, COUNT (*) AS RecoveredFrequency
-from [dbo].[Corona Virus Dataset]
-GROUP BY Recovered
-ORDER BY RecoveredFrequency desc;
+),
+ DeathsFrequencies AS (
+    Select Deaths,
+    DATEPART(Year, Date)CovidYear,
+    DATEPART(Month,Date)CovidMonth,
+    Count(*) as Frequency,
+    ROW_NUMBER() OVER(Partition By Datepart(Year, Date), Datepart(Month,Date) ORDER BY Count(*)Desc) AS rn
+    from [dbo].[Corona Virus Dataset] 
+    GROUP BY DATEPART(Year, Date), DATEPART(Month, Date), Deaths
+),
 
-SELECT Distinct DATEPART(Year,Date) AS CovidYear,
-MIN (Confirmed) AS LowestConfirmed
-from [dbo].[Corona Virus Dataset]
-GROUP BY DATEPART(Year,Date) 
-ORDER BY LowestConfirmed asc;
+RecoveredFrequencies AS (
+    SELECT Recovered,
+    Datepart(Year, Date) AS CovidYear,
+    Datepart(Month, Date) AS CovidMonth,
+    Count(*) as Frequency,
+    ROW_NUMBER() OVER (Partition BY Datepart(Year, Date), Datepart(Month, Date) ORDER BY Count(*) Desc) AS rn 
+    from [dbo].[Corona Virus Dataset] 
+    GROUP BY Datepart(Year, Date), Datepart(Month, Date), Recovered
+)
+SELECT
+c.CovidMonth,
+c.CovidYear, 
+c.Confirmed as ConfirmedFrequencies,
+d.Deaths as DeathsFrequecies,
+r.Recovered as RecoveredFrequencies
+from ConfirmedFrequencies as c 
+join DeathsFrequencies d ON c.CovidMonth = d.CovidMonth AND c.CovidYear = d.CovidYear AND c.rn = 1 AND d.rn = 1
+JOIN RecoveredFrequencies r ON c.CovidMonth = r.CovidMonth AND c.CovidYear = r.CovidYear AND r.rn = 1
+ORDER BY c.CovidMonth, c.CovidYear;
 
-SELECT Distinct DATEPART(Year,Date) AS CovidYear,
+
+With LowestConfirmed AS (
+    Select  DATEPART(Year,Date) AS CovidYear,
+    MIN (Confirmed) AS LowestConfirmed
+    from [dbo].[Corona Virus Dataset]
+    Group by DATEPART(Year,Date)
+
+),
+LowestDeaths AS (
+    Select 
+    DATEPART(Year,Date) AS CovidYear,
 MIN (Deaths) AS LowestDeaths
 from [dbo].[Corona Virus Dataset]
-GROUP BY DATEPART(Year,Date) 
-ORDER BY LowestDeaths asc;
+Group by DATEPART(Year,Date)
+),
 
-SELECT Distinct DATEPART(Year,Date) AS CovidYear,
+LowestRecovered AS (
+    SELECT DATEPART(Year,Date) AS CovidYear,
 MIN (Recovered) AS LowestRecovered
 from [dbo].[Corona Virus Dataset]
-GROUP BY DATEPART(Year,Date) 
-ORDER BY LowestRecovered asc;
+group by DATEPART(Year,Date)
+)
+
+SELECT 
+c.CovidYear,
+c.LowestConfirmed,
+d.LowestDeaths,
+r.LowestRecovered
+from LowestConfirmed c 
+join LowestDeaths d ON c.CovidYear = d.CovidYear
+JOIN LowestRecovered r ON c.CovidYear = r.CovidYear
+
+Order by c.CovidYear;
 
 
-SELECT Distinct DATEPART(Year,Date) AS CovidYear,
-MAX (Confirmed) AS LowestConfirmed
+
+With HighestConfirmed AS (
+    Select  DATEPART(Year,Date) AS CovidYear,
+    MAX (Confirmed) AS HighestConfirmed
+    from [dbo].[Corona Virus Dataset]
+    Group by DATEPART(Year,Date)
+
+),
+HighestDeaths AS (
+    Select 
+    DATEPART(Year,Date) AS CovidYear,
+MAX (Deaths) AS HighestDeaths
 from [dbo].[Corona Virus Dataset]
-GROUP BY DATEPART(Year,Date) 
-ORDER BY LowestConfirmed asc;
+Group by DATEPART(Year,Date)
+),
 
-SELECT Distinct DATEPART(Year,Date) AS CovidYear,
-MAX (Recovered) AS LowestRecovered
+HighestRecovered AS (
+    SELECT DATEPART(Year,Date) AS CovidYear,
+MAX (Recovered) AS HighestRecovered
 from [dbo].[Corona Virus Dataset]
-GROUP BY DATEPART(Year,Date) 
-ORDER BY LowestRecovered asc;
+group by DATEPART(Year,Date)
+)
 
-SELECT Distinct DATEPART(Year,Date) AS CovidYear,
-MAX (Deaths) AS LowestDeaths
-from [dbo].[Corona Virus Dataset]
-GROUP BY DATEPART(Year,Date) 
-ORDER BY LowestDeaths asc;
-
-
-Select Distinct DATEPART(Month, Date) AS CovidMonth,
-COUNT(Confirmed) as TotalConfirmed
-from [dbo].[Corona Virus Dataset]
-GROUP by DATEPART(Month, Date)
-Order BY CovidMonth asc;
+SELECT 
+c.CovidYear,
+c.HighestConfirmed,
+d.HighestDeaths,
+r.HighestRecovered
+from HighestConfirmed c 
+join HighestDeaths d ON c.CovidYear = d.CovidYear
+JOIN HighestRecovered r ON c.CovidYear = r.CovidYear
+Order by c.CovidYear;
 
 
-Select Distinct DATEPART(Month, Date) AS CovidMonth,
-COUNT(Deaths) as TotalDeaths
-from [dbo].[Corona Virus Dataset]
-GROUP by DATEPART(Month, Date)
-Order BY DATEPART(Month, Date)  asc;
+With TotalConfirmedCase AS (
+    SELECT 
+     DATEPART(Month, Date) AS CovidMonth,
+     DATEPART(YEAR, Date) AS CovidYear,
+     SUM(Confirmed) AS TotalConfirmed
+     from [dbo].[Corona Virus Dataset]
+     GROUP BY DATEPART(Month, Date),  DATEPART(YEAR, Date)
+),
+ TotalDeathsCase AS (
+    SELECT 
+     DATEPART(Month, Date) AS CovidMonth,
+     DATEPART(YEAR, Date) AS CovidYear,
+     SUM(Deaths) AS TotalDeaths
+     from [dbo].[Corona Virus Dataset]
+     GROUP BY DATEPART(Month, Date),  DATEPART(YEAR, Date)
+ ),
+ TotalRecorveredCase AS (
+    SELECT 
+     DATEPART(Month, Date) AS CovidMonth,
+     DATEPART(YEAR, Date) AS CovidYear,
+     SUM(Recovered) AS TotalRecovered
+     from [dbo].[Corona Virus Dataset]
+     GROUP BY DATEPART(Month, Date),  DATEPART(YEAR, Date)
+ )
 
+Select
+    c.CovidMonth,
+    c.CovidYear,
+    c.TotalConfirmed,
+    d.TotalDeaths,
+    r.TotalRecovered
+    from TotalConfirmedCase c 
+    Join TotalDeathsCase d ON c.CovidMonth = d.CovidMonth AND c.CovidYear = d.CovidYear 
+    JOIN TotalRecorveredCase r on c.CovidMonth = r.CovidMonth AND c.CovidYear = r.CovidYear
+    ORDER BY c.CovidMonth, c.CovidYear;
 
-Select Distinct DATEPART(Month, Date) AS CovidMonth,
-COUNT(Recovered) as TotalRecovered
-from [dbo].[Corona Virus Dataset]
-GROUP by DATEPART(Month, Date)
-Order BY DATEPART(Month, Date)  asc;
-
-
-Select AVG(Deaths) AS AverageDeaths,
+Select Datepart(YEAR, Date) AS CovidYear, DATEPART(Month, Date) AS CovidMonth, AVG(Deaths) AS AverageDeaths,
 COUNT (Deaths) AS TotalDeaths,
 VAR (Deaths) AS DeathsVariance,
 STDEV (Deaths) AS DeathsST
-FROM [dbo].[Corona Virus Dataset];
+FROM [dbo].[Corona Virus Dataset]
+Group by Datepart(YEAR, Date),DATEPART(Month, Date) 
+Order by CovidMonth, CovidYear;
 
-Select AVG(Confirmed) AS AverageConfirmed,
+Select Datepart(YEAR, Date) AS CovidYear, DATEPART(Month, Date) AS CovidMonth,AVG(Confirmed) AS AverageConfirmed,
 COUNT (Confirmed) AS TotalConfirmed,
 VAR (Confirmed) AS ConfirmedVariance,
 STDEV (Confirmed) AS ConfirmedST
-FROM [dbo].[Corona Virus Dataset];
+FROM [dbo].[Corona Virus Dataset]
+Group by Datepart(YEAR, Date),DATEPART(Month, Date) 
+Order by CovidMonth, CovidYear;
 
 Select AVG(Recovered) AS AverageRecovered,
 COUNT (Recovered) AS TotalRecovered,
